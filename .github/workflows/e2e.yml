@@ -1,0 +1,48 @@
+name: e2e
+on:
+  push:
+    tags-ingore:
+      - '**'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        containers: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 7.4
+          tools: composer:v2
+          extensions: pdo_sqlite
+      - name: Install PHP dependencies
+        uses: ramsey/composer-install@v1
+        with:
+          composer-options: --prefer-dist
+      - name: Generate app key
+        run: php artisan key:generate --quiet
+      - name: Install JavaScript dependencies
+        uses: bahmutov/npm-install@v1
+        with:
+          working-directory: |
+            ./resources/assets
+            .
+      - name: Lint
+        run: yarn lint
+      - name: Run E2E tests
+        uses: cypress-io/github-action@v2
+        with:
+          build: yarn build --no-progress
+          start: php artisan serve --port=8080 --quiet
+          wait-on: 'http://localhost:8080'
+          quiet: true
+          record: true
+          parallel: true
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
